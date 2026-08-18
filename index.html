@@ -84,6 +84,10 @@ tr:hover{background:#f9fafb}
       <option value="week7">近7天</option>
       <option value="week30">近30天</option>
     </select>
+    <span class="filter-label">月份：</span>
+    <select class="filter-select" id="monthFilter" onchange="applyFilter()">
+      <option value="all">全部月份</option>
+    </select>
     <span class="filter-label">趋势维度：</span>
     <select class="filter-select" id="trendDim" onchange="renderTrend()">
       <option value="monthly">按月</option>
@@ -208,6 +212,7 @@ const PAGE_SIZE = 100;
 // ============ 筛选 ============
 function applyFilter() {
   const timeVal = document.getElementById('timeFilter').value;
+  const monthVal = document.getElementById('monthFilter').value;
   const platVal = document.getElementById('platFilter').value;
   const seriesVal = document.getElementById('seriesFilter').value;
   const styleVal = document.getElementById('styleFilter').value;
@@ -247,6 +252,10 @@ function applyFilter() {
     const d = new Date(now.getFullYear(), now.getMonth()-1, 1);
     const ym = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
     filtered = filtered.filter(r => r['投放日期'].startsWith(ym));
+  }
+  // 月份筛选（具体某月）
+  if (monthVal !== 'all') {
+    filtered = filtered.filter(r => r['投放日期'].startsWith(monthVal));
   }
 
   // 重新计算过滤后的汇总数据
@@ -810,12 +819,19 @@ function renderTable() {
 
 // ============ 初始化 ============
 function init() {
-  // 填充平台/系列/款式下拉
+  // 填充平台/系列/款式/月份下拉
   const platSel = document.getElementById('platFilter');
   ALL_DATA.platform.names.forEach(p => {
     const opt = document.createElement('option');
     opt.value = p; opt.textContent = p;
     platSel.appendChild(opt);
+  });
+  const monthSel = document.getElementById('monthFilter');
+  ALL_DATA.monthly.labels.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m.replace('-', '年') + '月';
+    monthSel.appendChild(opt);
   });
   const seriesSel = document.getElementById('seriesFilter');
   ALL_DATA.series.names.forEach(s => {
