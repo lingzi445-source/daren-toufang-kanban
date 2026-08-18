@@ -195,7 +195,7 @@ tr:hover{background:#f9fafb}
 
   <!-- 爆款笔记榜 -->
   <div class="chart-section">
-    <div class="section-title">🏆 月度爆款笔记榜 TOP5</div>
+    <div class="section-title">🏆 月度爆款笔记榜 TOP10</div>
     <div class="top-toolbar">
       <span class="filter-label">月份：</span>
       <select class="filter-select" id="topMonthFilter" onchange="renderTopNotes()">
@@ -858,7 +858,7 @@ function renderTopNotes() {
     rows.sort((a, b) => b.综合分 - a.综合分);
   }
 
-  const top5 = rows.slice(0, 5);
+  const top5 = rows.slice(0, 10);
 
   // 表头
   const headRow = document.getElementById('topTableHead');
