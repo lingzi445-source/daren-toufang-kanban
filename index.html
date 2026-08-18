@@ -55,6 +55,22 @@ tr:hover{background:#f9fafb}
 .table-wrap{max-height:500px;overflow:auto;border:1px solid #f3f4f6;border-radius:8px}
 .table-count{font-size:12px;color:#6b7280;margin-left:auto}
 
+/* 爆款榜单 */
+.top-toolbar{display:flex;gap:12px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.top-table-wrap{overflow-x:auto;border:1px solid #f3f4f6;border-radius:8px}
+.top-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}
+.top-table-wrap th,.top-table-wrap td{padding:10px 12px;text-align:center;border-bottom:1px solid #f3f4f6;white-space:nowrap}
+.top-table-wrap th:first-child,.top-table-wrap td:first-child{text-align:left;width:30px}
+.top-table-wrap th{background:#f9fafb;font-weight:600;color:#4b5563;font-size:11px}
+.top-table-wrap tr:hover{background:#f9fafb}
+.top-rank{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;font-weight:700;font-size:11px}
+.top-rank-1{background:#fef3c7;color:#92400e}
+.top-rank-2{background:#f3f4f6;color:#4b5563}
+.top-rank-3{background:#fde68a;color:#92400e}
+.top-rank-n{background:#f3f4f6;color:#6b7280}
+.top-link{display:inline-block;padding:3px 10px;background:#eef2ff;color:#4f46e5;border-radius:4px;font-size:11px;text-decoration:none;white-space:nowrap}
+.top-link:hover{background:#e0e7ff}
+
 /* 颜色标签 */
 .cat-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
 
@@ -177,6 +193,29 @@ tr:hover{background:#f9fafb}
     </div>
   </div>
 
+  <!-- 爆款笔记榜 -->
+  <div class="chart-section">
+    <div class="section-title">🏆 月度爆款笔记榜 TOP5</div>
+    <div class="top-toolbar">
+      <span class="filter-label">月份：</span>
+      <select class="filter-select" id="topMonthFilter" onchange="renderTopNotes()">
+        <option value="all">全部月份</option>
+      </select>
+      <span class="filter-label">排序：</span>
+      <select class="filter-select" id="topSortFilter" onchange="renderTopNotes()">
+        <option value="rate">按互动率</option>
+        <option value="cpi">按单互动成本</option>
+        <option value="inter">按互动量</option>
+      </select>
+    </div>
+    <div class="top-table-wrap">
+      <table id="topTable">
+        <thead><tr id="topTableHead"></tr></thead>
+        <tbody id="topTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- 明细表格 -->
   <div class="table-section">
     <div class="section-title">📋 投放明细</div>
@@ -268,6 +307,7 @@ function applyFilter() {
   renderSeriesCharts(filtered);
   renderStyleCharts(filtered);
   renderPlatformCharts(filtered);
+  renderTopNotes();
   renderTable();
 }
 
@@ -749,6 +789,100 @@ function renderPlatformCharts(rows) {
   });
 }
 
+// ============ 爆款笔记榜 ============
+function renderTopNotes() {
+  if (!filteredData || filteredData.length === 0) return;
+  const monthVal = document.getElementById('topMonthFilter').value;
+  const sortVal = document.getElementById('topSortFilter').value;
+
+  let rows = filteredData.slice();
+  // 按月份筛选
+  if (monthVal !== 'all') {
+    rows = rows.filter(r => r['投放日期'].startsWith(monthVal));
+  }
+  // 过滤掉没数据的
+  rows = rows.filter(r => r['总互动'] > 0 && r['点击量'] > 0);
+
+  // 排序
+  if (sortVal === 'rate') {
+    rows.sort((a, b) => (b['总互动']/b['点击量']) - (a['总互动']/a['点击量']));
+  } else if (sortVal === 'cpi') {
+    rows.sort((a, b) => (a['总费用']/a['总互动']) - (b['总费用']/b['总互动']));
+  } else {
+    rows.sort((a, b) => b['总互动'] - a['总互动']);
+  }
+
+  const top5 = rows.slice(0, 5);
+
+  // 表头
+  const headRow = document.getElementById('topTableHead');
+  headRow.innerHTML = '';
+  const headers = ['排名', '日期', '平台', '系列', '款式', '内容类型', '互动量', '互动率', '单互动成本', '总费用', '笔记'];
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    headRow.appendChild(th);
+  });
+
+  // 表体
+  const body = document.getElementById('topTableBody');
+  body.innerHTML = '';
+  top5.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    const rate = r['点击量'] > 0 ? (r['总互动'] / r['点击量'] * 100).toFixed(2) + '%' : '-';
+    const cpi = r['总互动'] > 0 ? '¥' + (r['总费用'] / r['总互动']).toFixed(4) : '-';
+    const rankClass = i === 0 ? 'top-rank-1' : i === 1 ? 'top-rank-2' : i === 2 ? 'top-rank-3' : 'top-rank-n';
+
+    const cells = [
+      `<span class="top-rank ${rankClass}">${i+1}</span>`,
+      r['投放日期'] || '-',
+      r['平台'] || '-',
+      r['款式系列'] || '-',
+      r['款式编号'] || '-',
+      r['内容类型'] || '-',
+      Math.round(r['总互动'] || 0).toLocaleString(),
+      rate,
+      cpi,
+      '¥' + Number(r['总费用'] || 0).toFixed(0),
+    ];
+
+    cells.forEach(text => {
+      const td = document.createElement('td');
+      td.innerHTML = text;
+      tr.appendChild(td);
+    });
+
+    // 笔记链接
+    const td = document.createElement('td');
+    if (r['内容链接']) {
+      const a = document.createElement('a');
+      a.href = r['内容链接'];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.className = 'top-link';
+      a.textContent = '🔗 查看';
+      td.appendChild(a);
+    } else {
+      td.textContent = '-';
+    }
+    tr.appendChild(td);
+
+    body.appendChild(tr);
+  });
+
+  if (top5.length === 0) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 10;
+    td.style.textAlign = 'center';
+    td.style.color = '#9ca3af';
+    td.style.padding = '20px';
+    td.textContent = '暂无数据';
+    tr.appendChild(td);
+    body.appendChild(tr);
+  }
+}
+
 // ============ 明细表 ============
 function renderTable() {
   const search = document.getElementById('tableSearch').value.toLowerCase();
@@ -847,6 +981,14 @@ function init() {
     opt.value = m;
     opt.textContent = m.replace('-', '年') + '月';
     monthSel.appendChild(opt);
+  });
+  // 爆款榜月份下拉
+  const topMonthSel = document.getElementById('topMonthFilter');
+  ALL_DATA.monthly.labels.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m.replace('-', '年') + '月';
+    topMonthSel.appendChild(opt);
   });
   const seriesSel = document.getElementById('seriesFilter');
   ALL_DATA.series.names.forEach(s => {
