@@ -203,9 +203,10 @@ tr:hover{background:#f9fafb}
       </select>
       <span class="filter-label">排序：</span>
       <select class="filter-select" id="topSortFilter" onchange="renderTopNotes()">
+        <option value="score">综合分</option>
         <option value="rate">按互动率</option>
-        <option value="cpi">按单互动成本</option>
         <option value="inter">按互动量</option>
+        <option value="cpi">按单互动成本</option>
       </select>
     </div>
     <div class="top-table-wrap">
@@ -790,26 +791,71 @@ function renderPlatformCharts(rows) {
 }
 
 // ============ 爆款笔记榜 ============
+// 入围门槛（保守版）
+function meetsThreshold(plat, clicks, inter) {
+  if (clicks <= 0 || inter <= 0) return false;
+  if (plat === '抖音') return clicks >= 1000 && inter >= 50;
+  if (plat === '小红书') return clicks >= 300 && inter >= 20;
+  return clicks >= 500 && inter >= 30;
+}
+// 分平台百分位综合分计算
+function computeScores(rows) {
+  if (rows.length === 0) return [];
+  const byPlat = {};
+  rows.forEach(r => {
+    const p = r['平台'];
+    if (!byPlat[p]) byPlat[p] = [];
+    byPlat[p].push(r);
+  });
+  Object.keys(byPlat).forEach(plat => {
+    const list = byPlat[plat];
+    if (list.length < 2) {
+      list.forEach(r => { r.综合分 = 50; });
+      return;
+    }
+    const n = list.length;
+    const sortedClick = [...list].sort((a,b) => a['点击量'] - b['点击量']);
+    sortedClick.forEach((r, i) => { r._clickPct = (i + 0.5) / n * 100; });
+    const sortedRate = [...list].sort((a,b) => (a['总互动']/a['点击量']) - (b['总互动']/b['点击量']));
+    sortedRate.forEach((r, i) => { r._ratePct = (i + 0.5) / n * 100; });
+    const sortedInter = [...list].sort((a,b) => a['总互动'] - b['总互动']);
+    sortedInter.forEach((r, i) => { r._interPct = (i + 0.5) / n * 100; });
+    const sortedCpi = [...list].sort((a,b) => (b['总费用']/b['总互动']) - (a['总费用']/a['总互动']));
+    sortedCpi.forEach((r, i) => { r._cpiPct = (i + 0.5) / n * 100; });
+    list.forEach(r => {
+      r.综合分 = r._clickPct * 0.30 + r._ratePct * 0.30 + r._interPct * 0.25 + r._cpiPct * 0.15;
+    });
+  });
+  return rows;
+}
+
 function renderTopNotes() {
   if (!filteredData || filteredData.length === 0) return;
   const monthVal = document.getElementById('topMonthFilter').value;
   const sortVal = document.getElementById('topSortFilter').value;
 
   let rows = filteredData.slice();
-  // 按月份筛选
   if (monthVal !== 'all') {
     rows = rows.filter(r => r['投放日期'].startsWith(monthVal));
   }
-  // 过滤掉没数据的
-  rows = rows.filter(r => r['总互动'] > 0 && r['点击量'] > 0);
+  // 入围门槛
+  rows = rows.filter(r => meetsThreshold(r['平台'], r['点击量'], r['总互动']));
+  // 计算综合分
+  rows = computeScores(rows);
 
   // 排序
   if (sortVal === 'rate') {
     rows.sort((a, b) => (b['总互动']/b['点击量']) - (a['总互动']/a['点击量']));
   } else if (sortVal === 'cpi') {
-    rows.sort((a, b) => (a['总费用']/a['总互动']) - (b['总费用']/b['总互动']));
-  } else {
+    rows.sort((a, b) => {
+      const ca = a['总互动'] > 0 ? a['总费用']/a['总互动'] : 999;
+      const cb = b['总互动'] > 0 ? b['总费用']/b['总互动'] : 999;
+      return ca - cb;
+    });
+  } else if (sortVal === 'inter') {
     rows.sort((a, b) => b['总互动'] - a['总互动']);
+  } else {
+    rows.sort((a, b) => b.综合分 - a.综合分);
   }
 
   const top5 = rows.slice(0, 5);
@@ -817,7 +863,7 @@ function renderTopNotes() {
   // 表头
   const headRow = document.getElementById('topTableHead');
   headRow.innerHTML = '';
-  const headers = ['排名', '日期', '平台', '系列', '款式', '内容类型', '互动量', '互动率', '单互动成本', '总费用', '笔记'];
+  const headers = ['排名', '综合分', '日期', '平台', '系列', '款式', '内容类型', '点击量', '互动率', '互动量', '单互动成本', '笔记'];
   headers.forEach(h => {
     const th = document.createElement('th');
     th.textContent = h;
@@ -829,21 +875,23 @@ function renderTopNotes() {
   body.innerHTML = '';
   top5.forEach((r, i) => {
     const tr = document.createElement('tr');
-    const rate = r['点击量'] > 0 ? (r['总互动'] / r['点击量'] * 100).toFixed(2) + '%' : '-';
+    const rate = r['点击量'] > 0 ? (r['总互动'] / r['点击量'] * 100).toFixed(1) + '%' : '-';
     const cpi = r['总互动'] > 0 ? '¥' + (r['总费用'] / r['总互动']).toFixed(4) : '-';
     const rankClass = i === 0 ? 'top-rank-1' : i === 1 ? 'top-rank-2' : i === 2 ? 'top-rank-3' : 'top-rank-n';
+    const scoreColor = r.综合分 >= 80 ? 'color:#10b981;font-weight:700' : r.综合分 >= 70 ? 'color:#6366f1;font-weight:600' : 'color:#6b7280';
 
     const cells = [
       `<span class="top-rank ${rankClass}">${i+1}</span>`,
+      `<span style="${scoreColor}">${r.综合分.toFixed(1)}</span>`,
       r['投放日期'] || '-',
       r['平台'] || '-',
       r['款式系列'] || '-',
       r['款式编号'] || '-',
       r['内容类型'] || '-',
-      Math.round(r['总互动'] || 0).toLocaleString(),
+      Math.round(r['点击量'] || 0).toLocaleString(),
       rate,
+      Math.round(r['总互动'] || 0).toLocaleString(),
       cpi,
-      '¥' + Number(r['总费用'] || 0).toFixed(0),
     ];
 
     cells.forEach(text => {
@@ -873,11 +921,11 @@ function renderTopNotes() {
   if (top5.length === 0) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = 10;
+    td.colSpan = 12;
     td.style.textAlign = 'center';
     td.style.color = '#9ca3af';
     td.style.padding = '20px';
-    td.textContent = '暂无数据';
+    td.textContent = '暂无达标笔记';
     tr.appendChild(td);
     body.appendChild(tr);
   }
