@@ -599,6 +599,23 @@ function renderCtypeCharts(rows) {
   });
 
   if (ctypeScatterChart) ctypeScatterChart.destroy();
+  // 计算中位数作为四象限分割线
+  const sortedCpis = [...cpis].sort((a,b) => a-b);
+  const sortedRates = [...rates].sort((a,b) => a-b);
+  const midCpi = sortedCpis[Math.floor(sortedCpis.length/2)];
+  const midRate = sortedRates[Math.floor(sortedRates.length/2)];
+
+  // 四象限颜色
+  // 明星=绿(高互动率+低成本) 问题=橙(高互动率+高成本) 淘汰=红(低互动率+高成本) 现金牛=黄(低互动率+低成本)
+  const scatterColors = arr.map((x, i) => {
+    const isHighRate = rates[i] >= midRate;
+    const isLowCost = cpis[i] <= midCpi;
+    if (isHighRate && isLowCost) return { bg: 'rgba(16,185,129,0.6)', border: '#10b981' };      // 明星
+    if (isHighRate && !isLowCost) return { bg: 'rgba(245,158,11,0.6)', border: '#f59e0b' };    // 问题
+    if (!isHighRate && !isLowCost) return { bg: 'rgba(239,68,68,0.6)', border: '#ef4444' };   // 淘汰
+    return { bg: 'rgba(139,92,246,0.5)', border: '#8b5cf6' };                                  // 现金牛
+  });
+
   ctypeScatterChart = new Chart(document.getElementById('ctypeScatter'), {
     type:'scatter',
     data:{ datasets:[{
@@ -610,14 +627,48 @@ function renderCtypeCharts(rows) {
         name: x.name,
         posts: x.posts,
       })),
-      backgroundColor:'rgba(139,92,246,0.5)', borderColor:'#8b5cf6', borderWidth:1.5,
+      backgroundColor: scatterColors.map(c => c.bg),
+      borderColor: scatterColors.map(c => c.border),
+      borderWidth: 1.5,
     }]},
     options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, title:{display:true,text:'效率矩阵（气泡=费用）',font:{size:14,weight:'600'},color:'#1a1d21',padding:{bottom:12}},
+      plugins:{ legend:{display:false}, title:{display:true,text:'效率矩阵（气泡=费用，颜色=象限）',font:{size:14,weight:'600'},color:'#1a1d21',padding:{bottom:12}},
         tooltip:{ callbacks:{ label:ctx=>{ const d=ctx.raw; return [d.name,'笔记: '+d.posts+'条','互动率: '+d.y+'%','单互动成本: ¥'+Math.round(d.x*10000)/10000]; } }}
       },
-      scales:{ x:{title:{display:true,text:'单互动成本(元) ← 越左越优'},grid:{color:'#f3f4f6'}}, y:{title:{display:true,text:'互动率(%) ↑ 越高越好'},grid:{color:'#f3f4f6'}} }
-    }
+      scales:{
+        x:{ title:{display:true,text:'单互动成本(元) ← 越左越优'}, grid:{color:'#f3f4f6'} },
+        y:{ title:{display:true,text:'互动率(%) ↑ 越高越好'}, grid:{color:'#f3f4f6'} }
+      }
+    },
+    plugins:[{
+      id:'quadrantLines',
+      afterDraw(chart) {
+        const {ctx, chartArea: {left, right, top, bottom}, scales: {x,y}} = chart;
+        if (isNaN(midCpi) || isNaN(midRate)) return;
+        const xPos = x.getPixelForValue(Math.min(midCpi, 10));
+        const yPos = y.getPixelForValue(midRate);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(156,163,175,0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4,4]);
+        // 竖线
+        ctx.beginPath(); ctx.moveTo(xPos, top); ctx.lineTo(xPos, bottom); ctx.stroke();
+        // 横线
+        ctx.beginPath(); ctx.moveTo(left, yPos); ctx.lineTo(right, yPos); ctx.stroke();
+        ctx.setLineDash([]);
+        // 象限标签
+        ctx.font = '11px sans-serif';
+        ctx.fillStyle = '#10b981'; ctx.textAlign = 'left';
+        ctx.fillText('★ 爆款', left + 6, top + 14);
+        ctx.fillStyle = '#ef4444'; ctx.textAlign = 'right';
+        ctx.fillText('✕ 低效', right - 6, bottom - 6);
+        ctx.fillStyle = '#f59e0b'; ctx.textAlign = 'right';
+        ctx.fillText('高成本高回报', right - 6, top + 14);
+        ctx.fillStyle = '#8b5cf6'; ctx.textAlign = 'left';
+        ctx.fillText('低成本低回报', left + 6, bottom - 6);
+        ctx.restore();
+      }
+    }]
   });
 }
 
@@ -726,6 +777,22 @@ function renderStyleCharts(rows) {
   });
 
   if (styleScatterChart) styleScatterChart.destroy();
+  // 计算中位数作为四象限分割线
+  const styleSortedCpis = [...cpis].sort((a,b) => a-b);
+  const styleSortedRates = [...rates].sort((a,b) => a-b);
+  const styleMidCpi = styleSortedCpis[Math.floor(styleSortedCpis.length/2)];
+  const styleMidRate = styleSortedRates[Math.floor(styleSortedRates.length/2)];
+
+  // 四象限颜色
+  const styleColors = arr.map((x, i) => {
+    const isHighRate = rates[i] >= styleMidRate;
+    const isLowCost = cpis[i] <= styleMidCpi;
+    if (isHighRate && isLowCost) return { bg: 'rgba(16,185,129,0.6)', border: '#10b981' };
+    if (isHighRate && !isLowCost) return { bg: 'rgba(245,158,11,0.6)', border: '#f59e0b' };
+    if (!isHighRate && !isLowCost) return { bg: 'rgba(239,68,68,0.6)', border: '#ef4444' };
+    return { bg: 'rgba(59,130,246,0.5)', border: '#3b82f6' };
+  });
+
   styleScatterChart = new Chart(document.getElementById('styleScatter'), {
     type:'scatter',
     data:{ datasets:[{
@@ -737,14 +804,45 @@ function renderStyleCharts(rows) {
         name: x.name,
         posts: x.posts,
       })),
-      backgroundColor:'rgba(59,130,246,0.5)', borderColor:'#3b82f6', borderWidth:1.5,
+      backgroundColor: styleColors.map(c => c.bg),
+      borderColor: styleColors.map(c => c.border),
+      borderWidth: 1.5,
     }]},
     options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, title:{display:true,text:'款式效率矩阵（气泡=费用）',font:{size:14,weight:'600'},color:'#1a1d21',padding:{bottom:12}},
+      plugins:{ legend:{display:false}, title:{display:true,text:'款式效率矩阵（气泡=费用，颜色=象限）',font:{size:14,weight:'600'},color:'#1a1d21',padding:{bottom:12}},
         tooltip:{ callbacks:{ label:ctx=>{ const d=ctx.raw; return [d.name,'笔记: '+d.posts+'条','互动率: '+d.y+'%','单互动成本: ¥'+Math.round(d.x*10000)/10000]; } }}
       },
-      scales:{ x:{title:{display:true,text:'单互动成本(元)'},grid:{color:'#f3f4f6'}}, y:{title:{display:true,text:'互动率(%)'},grid:{color:'#f3f4f6'}} }
-    }
+      scales:{
+        x:{ title:{display:true,text:'单互动成本(元) ← 越左越优'}, grid:{color:'#f3f4f6'} },
+        y:{ title:{display:true,text:'互动率(%) ↑ 越高越好'}, grid:{color:'#f3f4f6'} }
+      }
+    },
+    plugins:[{
+      id:'quadrantLinesStyle',
+      afterDraw(chart) {
+        const {ctx, chartArea: {left, right, top, bottom}, scales: {x,y}} = chart;
+        if (isNaN(styleMidCpi) || isNaN(styleMidRate)) return;
+        const xPos = x.getPixelForValue(Math.min(styleMidCpi, 10));
+        const yPos = y.getPixelForValue(styleMidRate);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(156,163,175,0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4,4]);
+        ctx.beginPath(); ctx.moveTo(xPos, top); ctx.lineTo(xPos, bottom); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(left, yPos); ctx.lineTo(right, yPos); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = '11px sans-serif';
+        ctx.fillStyle = '#10b981'; ctx.textAlign = 'left';
+        ctx.fillText('★ 爆款', left + 6, top + 14);
+        ctx.fillStyle = '#ef4444'; ctx.textAlign = 'right';
+        ctx.fillText('✕ 低效', right - 6, bottom - 6);
+        ctx.fillStyle = '#f59e0b'; ctx.textAlign = 'right';
+        ctx.fillText('高成本高回报', right - 6, top + 14);
+        ctx.fillStyle = '#3b82f6'; ctx.textAlign = 'left';
+        ctx.fillText('低成本低回报', left + 6, bottom - 6);
+        ctx.restore();
+      }
+    }]
   });
 }
 
