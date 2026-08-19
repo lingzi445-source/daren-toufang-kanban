@@ -57,6 +57,9 @@ tr:hover{background:#f9fafb}
 
 /* 爆款榜单 */
 .top-toolbar{display:flex;gap:12px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.top-desc{font-size:12px;color:#6b7280;margin-bottom:12px;padding:8px 12px;background:#f9fafb;border-radius:6px;border-left:3px solid #6366f1;line-height:1.6}
+.top-desc-icon{margin-right:4px}
+.top-desc-threshold{color:#9ca3af;margin-left:6px}
 .top-table-wrap{overflow-x:auto;border:1px solid #f3f4f6;border-radius:8px}
 .top-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}
 .top-table-wrap th,.top-table-wrap td{padding:10px 12px;text-align:center;border-bottom:1px solid #f3f4f6;white-space:nowrap}
@@ -196,6 +199,11 @@ tr:hover{background:#f9fafb}
   <!-- 爆款笔记榜 -->
   <div class="chart-section">
     <div class="section-title">🏆 月度爆款笔记榜 TOP10</div>
+    <div class="top-desc">
+      <span class="top-desc-icon">💡</span>
+      <span>综合评分规则：分平台百分位排名，权重 = 点击量30% + 互动率30% + 互动量25% + 单互动成本15%</span>
+      <span class="top-desc-threshold">｜入围门槛：抖音≥1000点击/50互动，小红书≥300点击/20互动</span>
+    </div>
     <div class="top-toolbar">
       <span class="filter-label">月份：</span>
       <select class="filter-select" id="topMonthFilter" onchange="renderTopNotes()">
